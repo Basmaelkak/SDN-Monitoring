@@ -1,7 +1,5 @@
 # SDN Monitoring & Anomaly Detection
 
-![SDN Logo](static/images/sdn.png)
-
 ## Table des matières
 
 - [Présentation](#présentation)
@@ -26,7 +24,7 @@ L’application inclut un **dashboard Flask** pour visualiser les métriques ré
 ---
 
 ## Architecture
-![Architecture_Logo](static/images/architecture.png)
+![Architecture_Logo](static/images/archi.png)
 - **Mininet** : topologie SDN simulée
 - **Faucet** : contrôleur SDN exposant les métriques Prometheus
 - **Collector** : récupère et stocke les métriques dans SQLite
