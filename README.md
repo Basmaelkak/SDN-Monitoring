@@ -53,10 +53,19 @@ L’application inclut un **dashboard Flask** pour visualiser les métriques ré
 
 ## Prérequis
 
-- **VM** avec Mininet et Faucet installés
+- **VM** avec Mininet(v2.3.0) et Faucet(v1.10) installés
 - Python 3.8+
 - Bibliothèques Python :  
   ```bash
   pip install flask flask-login sqlalchemy pandas numpy scikit-learn requests graphviz sib_api_v3_sdk
+
+---
+
+## installation-et-configuration
+
+
+
+  
+  
 
 
