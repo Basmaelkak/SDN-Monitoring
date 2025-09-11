@@ -63,6 +63,11 @@ L’application inclut un **dashboard Flask** pour visualiser les métriques ré
 
 ## installation-et-configuration
 
+- Ouvrir une session SSH depuis VS Code vers la VM
+- Cloner le projet dans un dossier de la VM:git clone https://github.com/USERNAME/SDN-Monitoring.git
+cd SDN-Monitoring
+
+
 
 
   
