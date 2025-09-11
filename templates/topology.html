@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+
+{% block title %}Topologie du Réseau{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-diagram-3-fill me-2"></i>Visualisation de l'Architecture Réseau</h5>
+    </div>
+    <div id="network-container" class="card-body p-0" style="position: relative; height: 80vh;">
+        <div id="loading-message" class="d-flex justify-content-center align-items-center" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 100; background-color: rgba(255, 255, 255, 0.8);">
+            <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <p class="ms-3 mb-0 fs-5">Chargement de la topologie...</p>
+        </div>
+        <div id="mynetwork" style="width: 100%; height: 100%; background-image: linear-gradient(rgba(0, 123, 255, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(0, 123, 255, 0.04) 1px, transparent 1px); background-size: 25px 25px;"></div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function () {
+    const container = document.getElementById('mynetwork');
+    const loadingMessage = document.getElementById('loading-message');
+    let network = null;
+
+    async function drawTopology() {
+        try {
+            const response = await fetch("{{ url_for('get_topology') }}");
+            if (!response.ok) throw new Error(`Erreur réseau: ${response.statusText}`);
+            
+            const rawData = await response.json();
+            if (rawData.error) throw new Error(rawData.error);
+            if (!rawData.nodes || rawData.nodes.length === 0) {
+                throw new Error("Aucune topologie à afficher. Vérifiez votre fichier faucet.yaml.");
+            }
+
+            loadingMessage.style.display = 'none';
+
+            const nodes = new vis.DataSet(rawData.nodes);
+            const edges = new vis.DataSet(rawData.edges);
+            const data = { nodes: nodes, edges: edges };
+
+            // ===================================================================
+            // === NOUVELLES OPTIONS VISUELLES POUR UN MEILLEUR RENDU ============
+            // ===================================================================
+            const options = {
+                nodes: {
+                    // Styles par défaut pour tous les noeuds
+                    shape: 'box',
+                    margin: 10,
+                    widthConstraint: { minimum: 100, maximum: 150 },
+                    font: {
+                        size: 16,
+                        face: 'Segoe UI',
+                        color: '#343a40',
+                        strokeWidth: 3, // Largeur du contour du texte
+                        strokeColor: '#ffffff' // Couleur du contour (blanc pour faire ressortir)
+                    },
+                    shadow: {
+                        enabled: true,
+                        size: 8,
+                        x: 4,
+                        y: 4,
+                        color: 'rgba(0,0,0,0.1)'
+                    }
+                },
+                edges: {
+                    // Styles par défaut pour tous les liens
+                    width: 2,
+                    color: {
+                        color: '#adb5bd',        // Couleur par défaut
+                        highlight: '#0d6efd',   // Couleur quand un noeud connecté est sélectionné
+                        hover: '#6c757d'        // Couleur au survol de la souris
+                    },
+                    smooth: {
+                        enabled: true,
+                        type: 'cubicBezier',
+                        forceDirection: 'vertical',
+                        roundness: 0.4
+                    }
+                },
+                physics: {
+                    // Réglages de la physique pour une meilleure disposition
+                    enabled: true,
+                    solver: 'barnesHut',
+                    barnesHut: {
+                        gravitationalConstant: -10000,
+                        centralGravity: 0.1,
+                        springLength: 250,
+                        springConstant: 0.05,
+                        damping: 0.15,
+                        avoidOverlap: 0.8 
+                    }
+                },
+                interaction: {
+                    hover: true,
+                    navigationButtons: true,
+                    keyboard: true,
+                    tooltipDelay: 200
+                },
+                groups: {
+                    switches: {
+                        // Styles spécifiques pour les switches
+                        shape: 'icon',
+                        icon: {
+                            face: 'FontAwesome',
+                            code: '\uf233', // Icône de "serveur" qui ressemble à un switch rackable
+                            size: 60,
+                            color: '#0d6efd'
+                        }
+                    },
+                    hosts: {
+                        // Styles spécifiques pour les hôtes
+                        shape: 'icon',
+                        icon: {
+                            face: 'FontAwesome',
+                            code: '\uf109', // Icône d'ordinateur portable/desktop
+                            size: 50,
+                            color: '#198754'
+                        }
+                    }
+                }
+            };
+
+            network = new vis.Network(container, data, options);
+
+        } catch (error) {
+            loadingMessage.style.display = 'none';
+            container.innerHTML = `<div class="alert alert-danger m-3"><strong>Erreur de chargement de la topologie:</strong> ${error.message}</div>`;
+            console.error(error);
+        }
+    }
+
+    drawTopology();
+});
+</script>
+{% endblock %}

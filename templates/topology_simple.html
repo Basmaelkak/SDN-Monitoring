@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Topologie du Réseau{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-diagram-3-fill me-2"></i>Visualisation de l'Architecture Réseau </h5>
+        <a href="{{ url_for('topology_page') }}" class="btn btn-sm btn-outline-primary">
+            <i class="bi bi-arrow-clockwise"></i> Rafraîchir
+        </a>
+    </div>
+    <div class="card-body text-center p-2" style="background-color: #f8f9fa;">
+        {% if image_file %}
+            <!-- Affiche l'image si elle a été générée -->
+            <img src="{{ url_for('static', filename=image_file) }}?v={{ range(1, 10000) | random }}" 
+                 alt="Topologie du réseau" 
+                 style="max-width: 100%; height: auto;">
+        {% else %}
+            <!-- Affiche un message d'erreur si l'image n'a pas pu être générée -->
+            <div class="alert alert-warning mt-3">
+                Impossible de générer l'image de la topologie. Veuillez vérifier les logs.
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

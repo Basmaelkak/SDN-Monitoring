@@ -1,0 +1,316 @@
+{% extends 'base.html' %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+<!-- Cartes KPI (avec icônes) -->
+<div class="row mb-4 g-4">
+    <div class="col-lg-3 col-md-6">
+        <div class="card kpi-card bg-primary text-white">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <div id="kpi-num-dps" class="kpi-value">0</div>
+                    <div class="kpi-label">Switches Actifs</div>
+                </div>
+                <i class="bi bi-router-fill opacity-50" style="font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="card kpi-card bg-success text-white">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <div id="kpi-packet-ins" class="kpi-value">0</div>
+                    <div class="kpi-label">Total Packet-Ins</div>
+                </div>
+                <i class="bi bi-box-arrow-in-down-right opacity-50" style="font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="card kpi-card bg-info text-white">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <div id="kpi-flow-mods" class="kpi-value">0</div>
+                    <div class="kpi-label">Total Flow-Mods</div>
+                </div>
+                <i class="bi bi-diagram-3 opacity-50" style="font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-3 col-md-6">
+        <div class="card kpi-card bg-danger text-white">
+            <div class="card-body p-4 d-flex justify-content-between align-items-center">
+                <div>
+                    <div id="kpi-errors" class="kpi-value">0</div>
+                    <div class="kpi-label">Total Erreurs</div>
+                </div>
+                <i class="bi bi-exclamation-octagon-fill opacity-50" style="font-size: 3rem;"></i>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Conteneur pour les cartes des switchs -->
+<div id="switches-container" class="row"></div>
+
+<!-- Squelette de chargement -->
+<div id="loading-skeleton" class="row" style="display: none;">
+    <div class="col-12">
+        <div class="card skeleton-card">
+            <div class="card-body p-4">
+                <div class="skeleton-placeholder" style="width: 30%; height: 30px;"></div>
+                <div class="skeleton-placeholder mt-5" style="width: 100%; height: 350px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+
+{% block scripts %}
+<script>
+    let refreshInterval;
+    const charts = {};
+    let isFirstLoad = true; // Variable pour suivre le premier chargement
+
+    // Animation de compteur pour les KPIs
+    function animateValue(obj, start, end, duration) {
+        let startTimestamp = null;
+        const step = (timestamp) => {
+            if (!startTimestamp) startTimestamp = timestamp;
+            const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+            // Utilise toLocaleString pour formater les grands nombres
+            obj.innerHTML = Math.floor(progress * (end - start) + start).toLocaleString('fr-FR');
+            if (progress < 1) {
+                window.requestAnimationFrame(step);
+            }
+        };
+        window.requestAnimationFrame(step);
+    }
+
+    function createOrUpdateSwitchCard(dp_id, switchInfo) {
+        let cardContainer = document.getElementById(`card-container-${dp_id}`);
+        if (!cardContainer) {
+            cardContainer = document.createElement('div');
+            cardContainer.id = `card-container-${dp_id}`;
+            cardContainer.className = 'col-12 mb-4';
+            const cardHtml = `
+                <div id="switch-main-card-${dp_id}" class="card switch-main-card">
+                    <div class="card-header d-flex justify-content-between align-items-center fs-5">
+                        <span>${switchInfo.dp_name}</span>
+                        <small class="text-muted fs-6">ID: ${dp_id}</small>
+                    </div>
+                    <div class="card-body p-4">
+                        <div id="anomaly-alert-${dp_id}" class="alert alert-danger" style="display: none;"></div>
+                        <div class="mb-4" style="height: 350px; position: relative;">
+                            <h6 id="chart-label-${dp_id}" class="mb-3 text-center text-muted"></h6>
+                            <canvas id="chart-${dp_id}"></canvas>
+                        </div>
+                        <div class="row g-3 text-center">
+                            <div class="col-md-3 col-6">
+                                <div class="p-2 rounded" style="background-color: #f8f9fa;">
+                                    <i class="bi bi-box-arrow-in-down text-primary fs-2"></i>
+                                    <div id="metric-packet-ins-${dp_id}" class="fs-4 fw-bold">0</div>
+                                    <div class="text-muted small">Packet-Ins</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <div class="p-2 rounded" style="background-color: #f8f9fa;">
+                                    <i class="bi bi-diagram-3 text-info fs-2"></i>
+                                    <div id="metric-flow-mods-${dp_id}" class="fs-4 fw-bold">0</div>
+                                    <div class="text-muted small">Flow-Mods</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <div class="p-2 rounded" style="background-color: #f8f9fa;">
+                                    <i class="bi bi-hdd-network text-success fs-2"></i>
+                                    <div id="metric-hosts-${dp_id}" class="fs-4 fw-bold">0</div>
+                                    <div class="text-muted small">Hôtes Appris</div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 col-6">
+                                <div class="p-2 rounded" style="background-color: #f8f9fa;">
+                                    <i class="bi bi-exclamation-triangle text-danger fs-2"></i>
+                                    <div id="metric-errors-${dp_id}" class="fs-4 fw-bold">0</div>
+                                    <div class="text-muted small">Erreurs</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            cardContainer.innerHTML = cardHtml;
+            document.getElementById('switches-container').appendChild(cardContainer);
+        }
+
+        // Mettre à jour les métriques textuelles
+        document.getElementById(`metric-packet-ins-${dp_id}`).textContent = switchInfo.latest_metrics.packet_ins_total.toLocaleString('fr-FR');
+        document.getElementById(`metric-flow-mods-${dp_id}`).textContent = switchInfo.latest_metrics.flow_msgs_sent_total.toLocaleString('fr-FR');
+        document.getElementById(`metric-hosts-${dp_id}`).textContent = switchInfo.latest_metrics.vlan_hosts_learned_total.toLocaleString('fr-FR');
+        document.getElementById(`metric-errors-${dp_id}`).textContent = switchInfo.latest_metrics.of_errors_total.toLocaleString('fr-FR');
+
+        // Logique d'anomalie
+        const cardElement = document.getElementById(`switch-main-card-${dp_id}`);
+        const alertElement = document.getElementById(`anomaly-alert-${dp_id}`);
+        if (switchInfo.is_anomaly) {
+            cardElement.classList.add('is-anomaly');
+            alertElement.innerHTML = `<strong>Anomalie Détectée ! 🚨</strong> Score: ${switchInfo.anomaly_score} (Seuil: ${switchInfo.anomaly_threshold})`;
+            alertElement.style.display = 'block';
+        } else {
+            cardElement.classList.remove('is-anomaly');
+            alertElement.style.display = 'none';
+        }
+
+        // Mettre à jour le graphique (avec protection)
+        const chartData = switchInfo.chart_data;
+        const ctx = document.getElementById(`chart-${dp_id}`).getContext('2d');
+        const chartLabelEl = document.getElementById(`chart-label-${dp_id}`);
+
+        if (!chartData || !chartData.timestamps || !chartData.traffic_total || chartData.timestamps.length === 0) {
+            chartLabelEl.textContent = "En attente des données de trafic...";
+            if (charts[dp_id]) {
+                charts[dp_id].data.datasets[0].data = [];
+                charts[dp_id].update();
+            }
+            return; // Arrêt propre si pas de données
+        }
+
+        const dataForChart = chartData.timestamps.map((ts, index) => ({ x: new Date(ts), y: chartData.traffic_total[index] }));
+        chartLabelEl.textContent = chartData.chart_label_total;
+        const cardIsAnomaly = cardElement.classList.contains('is-anomaly');
+        const gradient = ctx.createLinearGradient(0, 0, 0, 350);
+        gradient.addColorStop(0, cardIsAnomaly ? 'rgba(220, 53, 69, 0.5)' : 'rgba(13, 202, 240, 0.5)');
+        gradient.addColorStop(1, cardIsAnomaly ? 'rgba(220, 53, 69, 0.0)' : 'rgba(13, 202, 240, 0.0)');
+
+        if (charts[dp_id]) {
+            charts[dp_id].data.datasets[0].data = dataForChart;
+            charts[dp_id].data.datasets[0].borderColor = cardIsAnomaly ? 'rgba(220, 53, 69, 1)' : 'rgba(13, 202, 240, 1)';
+            charts[dp_id].data.datasets[0].backgroundColor = gradient;
+            charts[dp_id].data.datasets[0].pointBackgroundColor = cardIsAnomaly ? 'rgba(220, 53, 69, 1)' : 'rgba(13, 202, 240, 1)';
+            charts[dp_id].update('none');
+        } else {
+            charts[dp_id] = new Chart(ctx, {
+                type: 'line',
+                data: { datasets: [{
+                    label: 'Total cumulatif', data: dataForChart, fill: true,
+                    borderColor: cardIsAnomaly ? 'rgba(220, 53, 69, 1)' : 'rgba(13, 202, 240, 1)',
+                    backgroundColor: gradient, tension: 0.4, pointRadius: 2,
+                    pointBackgroundColor: cardIsAnomaly ? 'rgba(220, 53, 69, 1)' : 'rgba(13, 202, 240, 1)',
+                }]},
+                options: { responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: 'index' },
+                    scales: { y: { beginAtZero: false, grid: { color: '#e9ecef' } }, x: { type: 'time', time: { unit: 'second', tooltipFormat: 'HH:mm:ss', displayFormats: { second: 'HH:mm:ss' } }, grid: { display: false }, ticks: { source: 'auto', maxRotation: 0, maxTicksLimit: 10 } }},
+                    plugins: { legend: { display: false } }
+                }
+            });
+        }
+    }
+
+    async function updateDashboard() {
+        try {
+            const response = await fetch('/api/data');
+            if (!response.ok) {
+                if (response.status === 401) window.location.href = '/login';
+                throw new Error(`Erreur réseau: ${response.statusText}`);
+            }
+            const data = await response.json();
+            const kpis = data.kpis;
+
+            // Animer les KPIs seulement au premier chargement
+            if (isFirstLoad) {
+                animateValue(document.getElementById('kpi-num-dps'), 0, kpis.num_dps || 0, 1000);
+                animateValue(document.getElementById('kpi-packet-ins'), 0, kpis.total_packet_ins || 0, 1200);
+                animateValue(document.getElementById('kpi-flow-mods'), 0, kpis.total_flow_msgs || 0, 1300);
+                animateValue(document.getElementById('kpi-errors'), 0, kpis.total_errors || 0, 1400);
+            } else { // Mettre à jour normalement ensuite
+                document.getElementById('kpi-num-dps').textContent = kpis.num_dps.toLocaleString('fr-FR') || '0';
+                document.getElementById('kpi-packet-ins').textContent = kpis.total_packet_ins_str || '0';
+                document.getElementById('kpi-flow-mods').textContent = kpis.total_flow_msgs_str || '0';
+                document.getElementById('kpi-errors').textContent = kpis.total_errors_str || '0';
+            }
+
+            const statusBadge = document.getElementById('network-status-badge');
+            if (statusBadge) {
+                statusBadge.innerHTML = kpis.network_status || 'INDÉTERMINÉ';
+                statusBadge.className = `badge bg-${kpis.status_color || 'secondary'}`;
+            }
+            
+            const switchesData = data.switches;
+            const switchesContainer = document.getElementById('switches-container');
+            const loadingSkeleton = document.getElementById('loading-skeleton');
+            
+            if (switchesData && Object.keys(switchesData).length > 0) {
+                switchesContainer.style.display = 'flex';
+                loadingSkeleton.style.display = 'none';
+                
+                const receivedDpIds = new Set(Object.keys(switchesData));
+                for (const dp_id in switchesData) {
+                    createOrUpdateSwitchCard(dp_id, switchesData[dp_id]);
+                }
+                
+                const displayedDpIds = new Set(Object.keys(charts));
+                for (const dp_id of displayedDpIds) {
+                    if (!receivedDpIds.has(dp_id)) {
+                        if (charts[dp_id]) charts[dp_id].destroy();
+                        delete charts[dp_id];
+                        const cardContainer = document.getElementById(`card-container-${dp_id}`);
+                        if (cardContainer) cardContainer.remove();
+                    }
+                }
+            } else {
+                // Si on attend les données, on affiche le squelette
+                if (isFirstLoad) {
+                    switchesContainer.style.display = 'none';
+                    loadingSkeleton.style.display = 'block';
+                } else { // Si les switches disparaissent après avoir été là
+                    switchesContainer.innerHTML = '<div class="col"><div class="alert alert-warning">Aucun switch actif détecté.</div></div>';
+                    loadingSkeleton.style.display = 'none';
+                }
+            }
+
+            // Marquer que le premier chargement est terminé
+            isFirstLoad = false;
+
+        } catch (error) {
+            console.error("Erreur lors de la mise à jour du dashboard:", error);
+            const loadingSkeleton = document.getElementById('loading-skeleton');
+            loadingSkeleton.innerHTML = `<div class="col-12"><div class="alert alert-danger"><strong>Erreur de Connexion</strong><p>Impossible de charger les données du dashboard. Le backend est peut-être inaccessible.</p></div></div>`;
+            loadingSkeleton.style.display = 'block';
+        }
+    }
+    
+    document.addEventListener('DOMContentLoaded', function () {
+        const refreshBtn = document.getElementById('refresh-btn');
+        const pauseBtn = document.getElementById('pause-btn');
+        const playBtn = document.getElementById('play-btn');
+
+        function startAutoRefresh() {
+            updateDashboard(); // Premier appel
+            refreshInterval = setInterval(updateDashboard, 5000);
+            if(pauseBtn) pauseBtn.style.display = 'inline-block';
+            if(playBtn) playBtn.style.display = 'none';
+        }
+
+        function stopAutoRefresh() {
+            clearInterval(refreshInterval);
+            if(pauseBtn) pauseBtn.style.display = 'none';
+            if(playBtn) playBtn.style.display = 'inline-block';
+        }
+        
+        if (refreshBtn) {
+            refreshBtn.addEventListener('click', () => {
+                const icon = refreshBtn.querySelector('i');
+                if (icon) {
+                    icon.classList.add('fa-spin');
+                    updateDashboard().finally(() => {
+                        setTimeout(() => { icon.classList.remove('fa-spin'); }, 500);
+                    });
+                }
+            });
+        }
+        if (pauseBtn) pauseBtn.addEventListener('click', stopAutoRefresh);
+        if (playBtn) playBtn.addEventListener('click', startAutoRefresh);
+        
+        startAutoRefresh();
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,22 @@
+<!-- templates/configuration.html -->
+{% extends 'base.html' %}
+
+{% block title %}Configuration Faucet{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header">
+        <h4 class="mb-0"><i class="bi bi-filetype-yml me-2"></i>Contenu de fichier de configuration </h4>
+    </div>
+    <div class="card-body">
+        {% if error_message %}
+            <div class="alert alert-danger">
+                <strong>Erreur :</strong> {{ error_message }}
+            </div>
+        {% else %}
+            <!-- C'est ici que Prism.js va agir grâce à la classe "language-yaml" -->
+            <pre><code class="language-yaml">{{ config_content }}</code></pre>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

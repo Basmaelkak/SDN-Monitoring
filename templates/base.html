@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}SDN Monitor{% endblock %}</title>
+    
+    <!-- Indique au navigateur de ne pas chercher de favicon, pour une console propre -->
+    <link rel="icon" href="data:,">
+    
+    <!-- Liens CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    
+    <!-- Ajout de FontAwesome pour les icônes de la topologie -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" integrity="sha512-iecdLmaskl7CVkqkXNQ/ZH/XLlvWZOJyj7Yy7tcenmpD1ypASozpmT/E0iPtmFIB46ZmdtAc9eNBvH0H/ZpiBw==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    
+    <!-- CSS pour les plugins (coloration de code et sélecteur de date) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-okaidia.min.css" rel="stylesheet" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+
+    <!-- Styles globaux de l'application -->
+    <style>
+    :root {
+        --sidebar-width: 260px;
+        --sidebar-bg: #212529;
+        --sidebar-text-color: #adb5bd;
+        --sidebar-text-hover: #ffffff;
+        --sidebar-active-bg: #0d6efd;
+    }
+
+    /* === STRUCTURE GLOBALE === */
+    body {
+        background-color: #f4f7f6;
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        overflow-x: hidden;
+    }
+    .sidebar { 
+        position: fixed; top: 0; left: 0; height: 100vh; 
+        width: var(--sidebar-width); 
+        background-color: var(--sidebar-bg); 
+        display: flex; flex-direction: column; 
+        transition: all 0.3s ease; z-index: 1031; 
+    }
+    .main-content { 
+        margin-left: var(--sidebar-width); 
+        transition: margin-left 0.3s ease; 
+        padding: 0; 
+    }
+    .main-content .top-navbar { 
+        box-shadow: 0 2px 10px rgba(0,0,0,.05); 
+        background-color: #fff; 
+        position: sticky; top: 0; z-index: 1020; 
+    }
+
+    /* === MENU LATÉRAL (SIDEBAR) === */
+    .sidebar-header { 
+        padding: 1.25rem 1.5rem; 
+        color: var(--sidebar-text-hover); 
+        border-bottom: 1px solid #343a40; 
+    }
+    .sidebar-header h3 { 
+        margin: 0; font-weight: 600; 
+        font-size: 1.5rem; 
+    }
+    .sidebar .nav-link { 
+        color: var(--sidebar-text-color); 
+        padding: 0.9rem 1.5rem; font-size: 1.05rem; 
+        border-left: 4px solid transparent; 
+        transition: all 0.2s ease-in-out; 
+    }
+    .sidebar .nav-link i { 
+        margin-right: 1rem; width: 22px; 
+        text-align: center; 
+    }
+    .sidebar .nav-link:hover { 
+        color: var(--sidebar-text-hover); 
+        background-color: rgba(255, 255, 255, 0.05); 
+    }
+    .sidebar .nav-link.active { 
+        color: var(--sidebar-text-hover); 
+        background-color: var(--sidebar-active-bg); 
+        border-left-color: #ffffff; font-weight: 500; 
+    }
+
+    /* === CARTES (STYLE DE BASE) === */
+    .card {
+        border: none;
+        border-radius: 0.75rem;
+        box-shadow: 0 4px 25px rgba(0, 0, 0, 0.08);
+        transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.1);
+    }
+    .card-header {
+        background-color: #fff;
+        border-bottom: 1px solid #f0f0f0;
+        font-weight: 600;
+    }
+
+    /* === CARTES KPI AMÉLIORÉES === */
+    .kpi-card {
+        overflow: hidden; /* Important pour les effets de fond */
+        position: relative;
+    }
+    .kpi-card:hover {
+        transform: translateY(-5px) scale(1.02);
+        box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+    }
+    .kpi-card .card-body::before { /* Effet de cercle décoratif */
+        content: '';
+        position: absolute;
+        top: -20px;
+        right: -20px;
+        width: 100px;
+        height: 100px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+        transition: transform 0.5s ease;
+    }
+    .kpi-card:hover .card-body::before {
+        transform: scale(1.2);
+    }
+    .kpi-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+    }
+    .kpi-label {
+        font-size: 1rem;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.9);
+    }
+
+    /* === CARTES SWITCH AMÉLIORÉES === */
+    .switch-main-card {
+        border-radius: 0.8rem;
+        border: 1px solid #e9ecef;
+        animation: popIn 0.5s ease-out; /* Animation d'apparition */
+    }
+    .switch-main-card .card-header {
+        background: linear-gradient(to right, #ffffff, #f8f9fa);
+    }
+    .switch-main-card.is-anomaly .card-header {
+        background: #dc3545; /* 'background-color' est suffisant */
+        color: white;
+        animation: pulse-red 1.5s infinite;
+    }
+    @keyframes popIn {
+        from { opacity: 0; transform: scale(0.95); }
+        to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes pulse-red {
+        0% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0.7); }
+        70% { box-shadow: 0 0 0 10px rgba(220, 53, 69, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(220, 53, 69, 0); }
+    }
+
+    /* === SQUELETTE DE CHARGEMENT === */
+    .skeleton-card {
+        background: #eef1f3;
+        height: 500px; /* Hauteur approx. d'une carte de switch */
+        position: relative;
+        overflow: hidden;
+    }
+    .skeleton-card::after {
+        content: '';
+        position: absolute;
+        top: 0; left: -150%;
+        height: 100%; width: 150%;
+        background: linear-gradient(to right, transparent 0%, #fafcff 50%, transparent 100%);
+        animation: shimmer 1.5s infinite;
+    }
+    .skeleton-placeholder {
+        height: 20px;
+        background: #e1e8ed;
+        border-radius: 4px;
+        margin-bottom: 15px;
+    }
+    @keyframes shimmer {
+        100% { left: 150%; }
+    }
+    /* CSS à ajouter dans la balise <style> de base.html */
+
+/* === PAGE HISTORIQUE === */
+.flatpickr-input {
+    background-color: #fff !important; /* Force le fond blanc pour le sélecteur de date */
+}
+.table-responsive {
+    box-shadow: inset 0 -2px 5px -5px rgba(0,0,0,0.2), inset 0 2px 5px -5px rgba(0,0,0,0.2);
+}
+.table-hover tbody tr:hover {
+    background-color: #e9f5ff; /* Couleur de survol plus marquée */
+    cursor: pointer;
+}
+.table-sm th, .table-sm td {
+    padding: 0.6rem 0.75rem; /* Padding un peu plus généreux */
+}
+
+/* Style pour la ligne de détail masquée */
+.detail-row {
+    display: none; /* Masqué par défaut */
+    background-color: #f8f9fa;
+}
+.detail-row.is-visible {
+    display: table-row; /* Rendu visible par le JS */
+}
+.detail-cell {
+    padding: 1.5rem !important; /* Padding important pour le contenu détaillé */
+    border-top: 2px solid #0d6efd !important;
+}
+.detail-content {
+    animation: fadeInDetail 0.4s ease-out;
+}
+@keyframes fadeInDetail {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+  /* CSS à ajouter dans la balise <style> de base.html */
+
+/* === PAGE TOPOLOGIE === */
+#topology-container {
+    cursor: grab; /* Indique qu'on peut déplacer l'image */
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    background-color: #ffffff;
+    background-image: 
+        linear-gradient(rgba(0, 0, 0, 0.04) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.04) 1px, transparent 1px);
+    background-size: 20px 20px;
+    overflow: hidden; /* Crucial pour panzoom */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 75vh; /* Hauteur fixe pour le conteneur */
+}
+#topology-container:active {
+    cursor: grabbing;
+}
+#topology-image {
+    transition: transform 0.2s ease-out; /* Pour un zoom fluide */
+}
+</style>
+</head>
+<body>
+
+    <!-- 1. Barre Latérale Verticale (Menu Principal) -->
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <h3><i class="bi bi-activity"></i> SDN Monitor</h3>
+        </div>
+        <ul class="nav flex-column mt-3">
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}"><i class="bi bi-grid-1x2-fill"></i>Dashboard</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'history' %}active{% endif %}" href="{{ url_for('history') }}"><i class="bi bi-clock-history"></i>Historique</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'topology_page' %}active{% endif %}" href="{{ url_for('topology_page') }}"><i class="bi bi-diagram-3-fill"></i>Topologie</a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link {% if request.endpoint == 'configuration' %}active{% endif %}" href="{{ url_for('configuration') }}">
+                    <i class="bi bi-file-earmark-code"></i>Configuration
+                </a>
+            </li>
+        </ul>
+    </div>
+
+    <!-- 2. Contenu Principal (avec la barre du haut) -->
+    <div class="main-content">
+        <!-- Barre de navigation supérieure (Top Bar) -->
+        <nav class="navbar top-navbar">
+            <div class="container-fluid">
+                <!-- Statut du réseau et contrôles (s'affiche uniquement sur le dashboard) -->
+                <div class="d-flex align-items-center">
+                    {% if request.endpoint == 'dashboard' %}
+                    <span class="navbar-text fw-bold me-3">Statut du Réseau : 
+                        <span id="network-status-badge" class="badge bg-secondary">EN ATTENTE...</span>
+                    </span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary" id="refresh-btn" title="Rafraîchir maintenant"><i class="bi bi-arrow-clockwise"></i></button>
+                        <button type="button" class="btn btn-outline-secondary" id="pause-btn" title="Mettre en pause"><i class="bi bi-pause-fill"></i></button>
+                        <button type="button" class="btn btn-outline-secondary" id="play-btn" title="Reprendre" style="display: none;"><i class="bi bi-play-fill"></i></button>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <!-- Menu utilisateur (toujours visible) -->
+                <div class="dropdown ms-auto">
+                    <a href="#" class="d-flex align-items-center text-dark text-decoration-none dropdown-toggle" id="dropdownUser" data-bs-toggle="dropdown" aria-expanded="false">
+                        <i class="bi bi-person-circle fs-4 me-2"></i><strong>{{ current_user.username }}</strong>
+                    </a>
+                    <ul class="dropdown-menu dropdown-menu-end text-small shadow" aria-labelledby="dropdownUser">
+                        <li><a class="dropdown-item" href="#"><i class="bi bi-person-fill me-2"></i>Mon Profil</a></li>
+                        <li><hr class="dropdown-divider"></li>
+                        <li><a class="dropdown-item" href="{{ url_for('logout') }}"><i class="bi bi-box-arrow-right me-2"></i>Déconnexion</a></li>
+                    </ul>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Zone où le contenu de chaque page sera injecté -->
+        <main class="container-fluid p-4">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+
+    <!-- Scripts JS Communs (bibliothèques) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/date-fns@2.29.3/cdn.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns@2.0.0/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-core.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/plugins/autoloader/prism-autoloader.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    
+    <!-- Zone où les scripts spécifiques de chaque page seront injectés -->
+    {% block scripts %}{% endblock %}
+
+</body>
+</html>

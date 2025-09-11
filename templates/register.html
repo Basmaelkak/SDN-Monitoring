@@ -1,0 +1,31 @@
+<!-- templates/register.html (VERSION AMÉLIORÉE) -->
+{% extends 'auth_base.html' %}
+
+{% block title %}Inscription{% endblock %}
+
+{% block card_title %}Créer un Compte{% endblock %}
+
+{% block form_content %}
+    <div class="input-group mb-3">
+        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+        <input type="email" class="form-control" name="email" placeholder="Adresse Email" required>
+    </div>
+
+    <div class="input-group mb-3">
+        <span class="input-group-text"><i class="bi bi-person"></i></span>
+        <input type="text" class="form-control" name="username" placeholder="Nom d'utilisateur" required>
+    </div>
+
+    <div class="input-group mb-4">
+        <span class="input-group-text"><i class="bi bi-key"></i></span>
+        <input type="password" class="form-control" name="password" placeholder="Mot de passe" required>
+    </div>
+
+    <div class="d-grid mb-3">
+        <button type="submit" class="btn btn-primary fw-bold">S'inscrire</button>
+    </div>
+
+    <p class="text-center small">
+        Déjà un compte ? <a href="{{ url_for('login') }}">Connectez-vous</a>
+    </p>
+{% endblock %}

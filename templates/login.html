@@ -1,0 +1,26 @@
+<!-- templates/login.html (VERSION AMÉLIORÉE) -->
+{% extends 'auth_base.html' %}
+
+{% block title %}Connexion{% endblock %}
+
+{% block card_title %}Accès au Moniteur{% endblock %}
+
+{% block form_content %}
+    <div class="input-group mb-3">
+        <span class="input-group-text"><i class="bi bi-person"></i></span>
+        <input type="text" class="form-control" name="username" placeholder="Nom d'utilisateur" required>
+    </div>
+
+    <div class="input-group mb-4">
+        <span class="input-group-text"><i class="bi bi-key"></i></span>
+        <input type="password" class="form-control" name="password" placeholder="Mot de passe" required>
+    </div>
+
+    <div class="d-grid mb-3">
+        <button type="submit" class="btn btn-primary fw-bold">Se Connecter</button>
+    </div>
+
+    <p class="text-center small">
+        Pas encore de compte ? <a href="{{ url_for('register') }}">Inscrivez-vous</a>
+    </p>
+{% endblock %}

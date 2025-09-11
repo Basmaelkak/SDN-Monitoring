@@ -1,0 +1,244 @@
+{% extends 'base.html' %}
+
+{% block title %}Historique des Métriques{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-calendar-range me-2"></i>Filtrer par Période</h5>
+    </div>
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label for="start_date" class="form-label">Du</label>
+                <input type="text" class="form-control" id="start_date" name="start_date" placeholder="Date de début" value="{{ start_date }}">
+            </div>
+            <div class="col-md-5">
+                <label for="end_date" class="form-label">Au</label>
+                <input type="text" class="form-control" id="end_date" name="end_date" placeholder="Date de fin" value="{{ end_date }}">
+            </div>
+            <div class="col-md-2 d-grid">
+                <button type="submit" class="btn btn-primary"><i class="bi bi-filter"></i> Filtrer</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- SECTION DES GRAPHIQUES CIRCULAIRES -->
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Répartition des Packet-Ins par Switch</h5>
+                <div style="height: 300px; position: relative;"><canvas id="packetInsChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-body">
+                <h5 class="card-title text-center">Répartition des Flow-Mods par Switch</h5>
+                <div style="height: 300px; position: relative;"><canvas id="flowMsgsChart"></canvas></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- GRAPHIQUE DE SÉRIES TEMPORELLES -->
+<div class="card mb-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-graph-up-arrow me-2"></i>Évolution des Anomalies et du Trafic sur la Période</h5>
+    </div>
+    <div class="card-body">
+        <div style="height: 350px; position: relative;"><canvas id="timeSeriesChart"></canvas></div>
+    </div>
+</div>
+
+<!-- TABLEAU DE DONNÉES -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="bi bi-table me-2"></i>Détail des Données ({{ records|length }} enregistrements)</h5>
+        <input type="text" id="searchInput" class="form-control" style="max-width: 300px;" placeholder="🔎 Rechercher...">
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive" style="max-height: 80vh;">
+            <table class="table table-striped table-hover table-sm mb-0">
+                <thead class="table-dark" style="position: sticky; top: 0; z-index: 1;">
+                    <tr>
+                        <th>🕒 Timestamp</th>
+                        <th>🆔 Switch</th>
+                        <th>📥 Packet Ins</th>
+                        <th>⚙️ Flow Mods</th>
+                        <th>⚠️ Erreurs</th>
+                        <th class="text-center">Score Anomalie</th>
+                    </tr>
+                </thead>
+                <tbody id="historyTableBody">
+                    {% for record in records %}
+                    <tr class="main-row" style="cursor: pointer;" data-bs-toggle="collapse" data-bs-target="#detail-{{ loop.index }}" aria-expanded="false" aria-controls="detail-{{ loop.index }}">
+                        <td>{{ record.timestamp.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ record.dp_name }} ({{ record.dp_id }})</td>
+                        <td>{{ record.packet_ins_total }}</td>
+                        <td>{{ record.flow_msgs_sent_total }}</td>
+                        <td>{{ record.of_errors_total }}</td>
+                        <td class="text-center">
+                            {% if record.anomaly_score is not none and record.anomaly_score <= -0.15 %}
+                                <span class="badge bg-danger">{{ "%.4f"|format(record.anomaly_score) }}</span>
+                            {% elif record.anomaly_score is not none and record.anomaly_score < 0 %}
+                                <span class="badge bg-warning text-dark">{{ "%.4f"|format(record.anomaly_score) }}</span>
+                            {% else %}
+                                <span class="badge bg-success">{{ "%.4f"|format(record.anomaly_score|default(0.0)) }}</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <tr class="collapse detail-row" id="detail-{{ loop.index }}">
+                        <td colspan="6" class="detail-cell">
+                             <div class="detail-content row">
+                                <div class="col-md-6">
+                                    <strong>Détails du Switch :</strong>
+                                    <ul>
+                                        <li>Nom : {{ record.dp_name }}</li>
+                                        <li>ID : {{ record.dp_id }}</li>
+                                    </ul>
+                                </div>
+                                <div class="col-md-6">
+                                    <strong>Métriques Complètes :</strong>
+                                    <ul>
+                                        <li>Hôtes Appris : {{ record.vlan_hosts_learned_total|default('N/A') }}</li>
+                                        <li>Déconnexions : {{ record.dp_disconnections_total|default('N/A') }}</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr id="no-history-row">
+                        <td colspan="6" class="text-center p-5">
+                            <h4>Aucun enregistrement trouvé</h4>
+                            <p class="text-muted">Essayez d'élargir votre plage de dates.</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // Initialisation du sélecteur de date
+    flatpickr("#start_date", { dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", defaultDate: "{{ start_date }}" });
+    flatpickr("#end_date", { dateFormat: "Y-m-d", altInput: true, altFormat: "j F Y", defaultDate: "{{ end_date }}" });
+
+    // --- GRAPHIQUES CIRCULAIRES ---
+    const pieChartData = JSON.parse('{{ pie_chart_data | tojson | safe }}');
+    const chartColors = ['rgba(13, 110, 253, 0.8)','rgba(25, 135, 84, 0.8)','rgba(255, 193, 7, 0.8)','rgba(13, 202, 240, 0.8)','rgba(108, 117, 125, 0.8)'];
+
+    function createDoughnutChart(canvasId, data, labels) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+        if (!data || !labels || data.length === 0 || data.every(d => d === 0)) {
+            ctx.font = "16px Segoe UI";
+            ctx.fillStyle = "#aaa";
+            ctx.textAlign = "center";
+            ctx.fillText("Aucune donnée pour ce graphique", ctx.canvas.width / 2, ctx.canvas.height / 2);
+            return;
+        }
+        new Chart(ctx, {
+            type: 'doughnut',
+            data: { labels: labels, datasets: [{ data: data, backgroundColor: chartColors }] },
+            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top' } } }
+        });
+    }
+
+    if (pieChartData && pieChartData.packet_ins) {
+        createDoughnutChart('packetInsChart', pieChartData.packet_ins.data, pieChartData.packet_ins.labels);
+    }
+    if (pieChartData && pieChartData.flow_msgs) {
+        createDoughnutChart('flowMsgsChart', pieChartData.flow_msgs.data, pieChartData.flow_msgs.labels);
+    }
+    
+    // --- GRAPHIQUE DE SÉRIES TEMPORELLES ---
+    const timeChartData = JSON.parse('{{ time_chart_data | tojson | safe }}');
+    if (timeChartData && timeChartData.labels && timeChartData.labels.length > 0) {
+        const timeCtx = document.getElementById('timeSeriesChart').getContext('2d');
+        new Chart(timeCtx, {
+            type: 'line',
+            data: {
+                labels: timeChartData.labels,
+                datasets: [
+                    {
+                        label: 'Score d\'Anomalie',
+                        data: timeChartData.anomaly_scores,
+                        borderColor: 'rgba(220, 53, 69, 0.7)',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        yAxisID: 'yAnomaly',
+                        tension: 0.3,
+                        pointRadius: 2,
+                        fill: true
+                    },
+                    {
+                        label: 'Total Packet-Ins',
+                        data: timeChartData.packet_ins,
+                        borderColor: 'rgba(13, 110, 253, 0.7)',
+                        backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                        yAxisID: 'yTraffic',
+                        tension: 0.3,
+                        pointRadius: 2
+                    }
+                ]
+            },
+            options: {
+                responsive: true, maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                scales: {
+                    x: { type: 'time', time: { unit: 'day', tooltipFormat: 'dd/MM/yyyy HH:mm', displayFormats: { day: 'dd/MM/yyyy' } } },
+                    yAnomaly: { type: 'linear', display: true, position: 'left', title: { display: true, text: 'Score d\'Anomalie' } },
+                    yTraffic: { type: 'linear', display: true, position: 'right', grid: { drawOnChartArea: false }, title: { display: true, text: 'Trafic (Packet-Ins)' } }
+                }
+            }
+        });
+    } else {
+        const timeCtx = document.getElementById('timeSeriesChart').getContext('2d');
+        timeCtx.font = "16px Segoe UI";
+        timeCtx.fillStyle = "#aaa";
+        timeCtx.textAlign = "center";
+        timeCtx.fillText("Aucune donnée temporelle à afficher pour cette période", timeCtx.canvas.width / 2, timeCtx.canvas.height / 2);
+    }
+
+    // --- LOGIQUE DE RECHERCHE DANS LA TABLE ---
+    const searchInput = document.getElementById('searchInput');
+    const tableBody = document.getElementById('historyTableBody');
+    const allMainRows = Array.from(tableBody.querySelectorAll('tr.main-row'));
+    const noHistoryRow = document.getElementById('no-history-row');
+
+    searchInput.addEventListener('keyup', function() {
+        const searchTerm = this.value.toLowerCase();
+        let visibleCount = 0;
+        
+        allMainRows.forEach(row => {
+            const rowText = row.textContent.toLowerCase();
+            const isVisible = rowText.includes(searchTerm);
+            row.style.display = isVisible ? '' : 'none';
+
+            const detailRowId = row.dataset.bsTarget;
+            const detailRow = document.querySelector(detailRowId);
+            if (detailRow) {
+                // On s'assure que les détails sont fermés (non-visibles) pendant la recherche
+                detailRow.classList.remove('show'); 
+                // Optionnel : on cache aussi la ligne physiquement si sa ligne principale est cachée
+                detailRow.style.display = isVisible ? '' : 'none';
+            }
+            
+            if (isVisible) visibleCount++;
+        });
+
+        if (noHistoryRow) {
+            noHistoryRow.style.display = (visibleCount === 0) ? '' : 'none';
+        }
+    });
+});
+</script>
+{% endblock %}

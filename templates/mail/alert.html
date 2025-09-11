@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+        .container { max-width: 600px; margin: 20px auto; padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
+        .header { background-color: #d9534f; color: white; padding: 10px; text-align: center; border-radius: 5px 5px 0 0; }
+        .content { padding: 20px; }
+        .footer { font-size: 0.8em; text-align: center; color: #777; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>Alerte de Sécurité Réseau SDN</h2>
+        </div>
+        <div class="content">
+            <p>Bonjour {{ current_user.username }},</p>
+            <p>
+                Le système de monitoring a détecté un comportement anormal sur le réseau.
+                Une intervention pourrait être nécessaire.
+            </p>
+            <h3>Détails de l'alerte :</h3>
+            <ul>
+                <li><strong>Timestamp de détection :</strong> {{ now.strftime('%Y-%m-%d %H:%M:%S') }} UTC</li>
+                <li><strong>Switch concerné :</strong> <strong>{{ switch_name }}</strong></li>
+                <li><strong>Score d'anomalie :</strong> <strong style="color: #d9534f;">{{ score }}</strong> (le seuil est de {{ threshold }})</li>
+            </ul>
+            <h3>Actions Recommandées :</h3>
+            <ol>
+                <li><a href="{{ url_for('dashboard', _external=True) }}"><strong>Accéder au Dashboard</strong></a> pour visualiser l'état en temps réel.</li>
+                <li>Analyser les logs récents du switch concerné.</li>
+                <li>Vérifier les modifications récentes de la configuration.</li>
+            </ol>
+            <p>Cordialement,<br>Votre Système de Surveillance Automatique</p>
+        </div>
+        <div class="footer">
+            Ceci est un message automatique. Merci de ne pas y répondre.
+        </div>
+    </div>
+</body>
+</html>
