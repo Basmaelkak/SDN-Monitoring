@@ -13,8 +13,6 @@
 - [Collecte des métriques](#collecte-des-métriques)
 - [Détection d'anomalies](#détection-danomalies)
 - [Dashboard Flask](#dashboard-flask)
-- [Notifications Email](#notifications-email)
-- [Topologie Mininet](#topologie-mininet)
 - [Contributeur](#contributeur)
 - [Licence](#licence)
 
@@ -55,10 +53,7 @@ L’application inclut un **dashboard Flask** pour visualiser les métriques ré
 
 - **VM** avec Mininet(v2.3.0) et Faucet(v1.10) installés
 - Python 3.8+
-- Bibliothèques Python :  
-  ```bash
-  pip install flask flask-login sqlalchemy pandas numpy scikit-learn requests graphviz sib_api_v3_sdk
-
+- une clé API depuis Brevo pour l'envois des emails 
 ---
 
 ## installation-et-configuration
@@ -66,6 +61,42 @@ L’application inclut un **dashboard Flask** pour visualiser les métriques ré
 - Ouvrir une session SSH depuis VS Code vers la VM
 - Cloner le projet dans un dossier de la VM:git clone https://github.com/USERNAME/SDN-Monitoring.git
 cd SDN-Monitoring
+- Installer les dépendances Python: pip install flask flask-login sqlalchemy pandas numpy scikit-learn requests graphviz sib_api_v3_sdk
+
+## exécution 
+
+- Lancer Faucet dans la VM:faucet --verbose
+- Lancer la topologie Mininet dans la VM: sudo mn --custom ./my_topo.py --topo mytopo --controller=remote,ip=127.0.0.1,port=6653 --switch ovs,protocols=OpenFlow13
+- Lancer le collecteur de métriques: python3 collector.py
+- Lancer le dashboard Flask: python3 app.py
+
+
+## collecte des métriques
+- Fichier : collector.py
+- Récupère les métriques Prometheus exposées par Faucet
+-Stocke les données dans SQLite (sdn_metrics.db) pour analyse
+
+## Détection d’anomalies
+- Fichier : detector.py
+- l'algorithme IsolationForest pour détecter les anomalies
+- Déclenche l’envoi d’alertes email
+
+
+##  Dashboard Flask
+- Authentification avec Flask-Login
+- Graphiques temporels et circulaires
+- Historique filtrable
+- Visualisation de la topologie réseau
+
+##  Contributeur
+
+Basma El Kak – Développement complet
+
+##  Licence
+
+Ce projet est sous licence MIT. 
+
+
 
 
 
