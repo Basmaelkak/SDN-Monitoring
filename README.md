@@ -11,7 +11,7 @@
 - [Collecte des métriques](#collecte-des-métriques)
 - [Détection d'anomalies](#détection-danomalies)
 - [Dashboard Flask](#dashboard-flask)
-- [video demonstrative](#video-demonstrative)
+- [videos demonstratives](#videos-demonstratives)
 - [Contributeur](#contributeur)
 - [Licence](#licence)
 
@@ -87,7 +87,7 @@ cd SDN-Monitoring
 - Visualisation de la topologie réseau
 
 
-## video demonstrative
+## videos demonstratives
 
 
 https://github.com/user-attachments/assets/2dd7ca2b-d46b-411b-b03c-4d26ecac1e18
